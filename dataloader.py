@@ -7,9 +7,11 @@ import os
 
 from options import parse_args
 
-class StockDataset(Dataset):
+epsilon = 10e-8
 
-    def __init__(self, datapath, window_length, opts):
+class Environment:
+
+    def __init__(self, datapath, window_length, cost, opts):
         self.datapath = datapath
         self.window_length = window_length
         self.opts = opts
@@ -27,7 +29,7 @@ class StockDataset(Dataset):
             self.asset_dict[asset] = df
 
         sample_df = self.asset_dict[self.assets[-1]]
-        self.portfolio_dim = len(self.assets) + 1 # all assets and cash
+        self.portfolio_dim = len(self.assets) + 1  # all assets and cash
         self.variables = list(sample_df.columns)
         self.variables.pop(0)
         self.num_variables = len(self.variables)
@@ -45,52 +47,101 @@ class StockDataset(Dataset):
             for asset in self.assets:
                 df = self.asset_dict[asset]
                 for j in range(self.num_variables):
-                    values[j] = np.vstack((values[j], df.iloc[i:i+self.window_length, j+1]))
+                    values[j] = np.vstack(
+                        (values[j], df.iloc[i:i+self.window_length, j+1]))
 
-                retval =  df['Close'][i+self.window_length] / df['Close'][i+self.window_length -1]
+                retval = df['Close'][i+self.window_length] / \
+                    df['Close'][i+self.window_length - 1]
                 out = np.vstack((out, retval))
 
             values = np.stack(values, axis=2)
-            values = values.reshape(1, self.portfolio_dim, self.window_length, self.num_variables)
-            out = out.reshape(1, self.portfolio_dim, 1)
+            values = values.reshape(
+                1, self.portfolio_dim, self.window_length, self.num_variables)
+            out = out.reshape(self.portfolio_dim, 1)
 
             self.x.append(values)
             self.y.append(out)
 
-    def __getitem__(self, index: int):
+        self.idx = self.window_length
+        self.cost = cost
+
+    def step(self, w, a):
+        if self.idx == self.window_length:
+            data = {
+                'reward': 0,
+                'current': self.x[self.idx-1],
+                'next': self.x[self.idx],
+                'action': np.array([[1] + [0 for i in range(self.portfolio_dim-1)]]),
+                'price': self.y[self.idx],
+                'risk': 0,
+                'is_nonterminal': 0 if self.idx == self.length - 1 else 1
+            }
+            self.idx += 1
+
+            return data
+
+        price = self.y[self.idx]
+        mu = self.cost * (np.abs(a[0][1:] - w[0][1:])).sum()
+
+        # std = self.states[self.t - 1][0].std(axis=0, ddof=0)
+        # w2_std = (w2[0]* std).sum()
+
+        # #adding risk
+        # gamma=0.00
+        # risk=gamma*w2_std
+
+        risk = 0
+        reward = (np.dot(a, price)[0] - mu)[0]
+        reward = np.log(reward + epsilon)
+
+        a = a / (np.dot(a, price) + epsilon)
+        next_state = self.x[self.idx+1]
+
         data = {
-            'x': self.x[index],
-            'y': self.y[index]
+            'reward': reward, 
+            'next': next_state,
+            'action': a,
+            'price': price,
+            'risk': risk,
+            'is_nonterminal': 0 if self.idx == self.length - 1 else 1
         }
+
+        self.idx += 1
+        if self.idx == self.length:
+            self.idx = self.window_length
 
         return data
 
-    def __len__(self):
-        return self.length
-
-
-def getDataloaders(opts):
+def getEnvironments(opts):
     train_path = os.path.join(opts.datapath, 'train/')
     val_path = os.path.join(opts.datapath, 'val/')
 
-    train_dataset = StockDataset(train_path, opts.window_length, opts)
-    val_dataset = StockDataset(val_path, opts.window_length, opts)
+    train_env = Environment(train_path, opts.window_length, opts.cost, opts)
+    val_env = Environment(val_path, opts.window_length, opts.cost, opts)
 
-    train_loader = DataLoader(dataset=train_dataset,
-                              batch_size=opts.batch_size, shuffle=False)
-    val_loader = DataLoader(dataset=val_dataset,
-                            batch_size=opts.batch_size, shuffle=False)
-
-    return train_loader, val_loader
+    return train_env, val_env
 
 
-# train_loader, val_loader, test_dataset = getDataloaders('./data/', 1, 0.7, 0.1)
+def getTestEnvironment(opts):
+    test_path = os.path.join(opts.datapath, 'test/')
+    test_env = Environment(test_path, opts.window_length, opts.cost, opts)
+
+    return test_env
+
+
 if __name__ == "__main__":
     opts = parse_args()
-    train_loader, val_loader = getDataloaders(opts)
+    train_env, val_env = getEnvironments(opts)
+    print(train_env.assets)
+    w = [1] + [0 for _ in range(train_env.portfolio_dim-1)]
+    w = np.array([w])
+    i = 0
 
-    for i, data in enumerate(train_loader):
+    while train_env.idx < train_env.length:
+        data = train_env.step(w, w)
         print(data)
 
+        i += 1
         if i == 5:
             break
+
