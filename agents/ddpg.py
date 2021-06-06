@@ -99,8 +99,26 @@ class Critic(nn.Module):
 
 
 class DDPG():
-    def __init__(self):
-        _ = 0
+    def __init__(self, M, L, N):
+        self.M = M
+        self.L = L
+        self.N = N
+        self.actor = Actor(self.M)
+        self.actor_target = Actor(self.M)
+        self.critic = Critic(self.M)
+        self.critic_target = Critic(self.M)
+
+        hard_update(self.actor_target, self.actor)
+        hard_update(self.critic_target, self.critic)
+
+        self.tau = 0.5
+
+
+    def predict(self, s, action):
+        return self.actor_target((s, action)) # needs to be passed as a tuple
+    
+    def train(self):
+        return 0
 
 # opts = parse_args()
 # train_loader, val_loader = dataloader.getDataloaders(opts)
