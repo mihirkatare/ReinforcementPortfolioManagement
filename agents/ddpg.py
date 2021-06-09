@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import dataloader
 from options import parse_args
+from torch.optim import Adam
 
 def soft_update(target, source, tau):
     for target_param, param in zip(target.parameters(), source.parameters()):
@@ -107,19 +108,49 @@ class DDPG():
         self.actor_target = Actor(self.M)
         self.critic = Critic(self.M)
         self.critic_target = Critic(self.M)
+        self.actor_optim = Adam(self.actor.parameters())
+        self.critic_optim = Adam(self.critic.parameters())
 
         hard_update(self.actor_target, self.actor)
         hard_update(self.critic_target, self.critic)
 
         self.tau = 0.5
-
+        self.batch_size = 1
+        self.discount = 0.05
+        self.buffer = list()
+        
+        self.criterion = nn.MSELoss()
 
     def predict(self, s, action):
-        return self.actor_target((s, action)) # needs to be passed as a tuple
+        return self.actor((s, action)) # needs to be passed as a tuple
     
-    def train(self):
-        return 0
+    def save_transition(self, state, action, r, is_nonterminal, next_state, prev_action):
+        self.buffer.append((state, action, r, is_nonterminal, next_state, prev_action))
 
+    def train(self):
+        s, a, r, isnt, s_next, w = self.get_batch()
+        q_next = self.critic_target((s_next, w, self.actor_target((s_next, w)) ))
+        y = r + self.discount*isnt*q_next
+
+        # updating critic
+        self.critic.zero_grad()
+        q_pred = self.critic((s, w, a))
+        c_loss = self.criterion(q_pred, y)
+        c_loss.backward()
+        self.critic_optim.step()
+
+        # updating actor
+        self.actor.zero_grad()
+        a_loss = -self.critic((s, w, self.actor((s, w)))).mean()
+        a_loss.backward()
+        self.actor_optim.step()
+
+        # soft updating targets
+        soft_update(self.actor_target, self.actor, self.tau)
+        soft_update(self.critic_target, self.critic, self.tau)
+
+    def get_batch(self):
+        return self.buffer[0] # testing purposes
 # opts = parse_args()
 # train_loader, val_loader = dataloader.getDataloaders(opts)
 
