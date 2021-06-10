@@ -129,19 +129,29 @@ class DDPG():
 
     def train(self):
         s, a, r, isnt, s_next, w = self.get_batch()
-        q_next = self.critic_target((s_next, w, self.actor_target((s_next, w)) ))
-        y = r + self.discount*isnt*q_next
+        length = len(s_next)
+
+        y = []
+        for i in range(length):
+            q_next_i = self.critic_target((s_next[i], w[i], self.actor_target((s_next[i], w[i])) ))
+            y.append(r[i] + self.discount*isnt[i]*q_next_i[i])
 
         # updating critic
         self.critic.zero_grad()
-        q_pred = self.critic((s, w, a))
-        c_loss = self.criterion(q_pred, y)
+        q_pred = []
+        for j in range(length):
+            q_pred.append(self.critic((s[j], w[j], a[j])) )
+        
+        c_loss = self.criterion(torch.stack(q_pred), torch.stack(y) )
         c_loss.backward()
         self.critic_optim.step()
 
         # updating actor
         self.actor.zero_grad()
-        a_loss = -self.critic((s, w, self.actor((s, w)))).mean()
+        a_loss_i = []
+        for k in range(length):
+            a_loss_i.append( -self.critic((s[k], w[k], self.actor((s[k], w[k])))) )
+        a_loss = torch.stack(a_loss_i).mean()
         a_loss.backward()
         self.actor_optim.step()
 
@@ -150,7 +160,16 @@ class DDPG():
         soft_update(self.critic_target, self.critic, self.tau)
 
     def get_batch(self):
-        return self.buffer[0] # testing purposes
+        s = [data[0] for data in self.buffer]
+        a = [data[1] for data in self.buffer]
+        r = [data[2] for data in self.buffer]
+        isnt = [data[3] for data in self.buffer]
+        s_next = [data[4] for data in self.buffer]
+        w = [data[5] for data in self.buffer]
+        return s, a, r, isnt, s_next, w
+
+    def reset_buffer(self):
+        self.buffer = list()
 # opts = parse_args()
 # train_loader, val_loader = dataloader.getDataloaders(opts)
 
