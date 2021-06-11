@@ -4,6 +4,7 @@ import numpy as np
 from options import parse_args
 from dataloader import getEnvironments, getTestEnvironment
 
+from agents.ddpg import DDPG
 # yet to implement
 def backtest(agent, env):
     pass
@@ -19,10 +20,10 @@ def rollout(agent, opts):
 
     while train_env.idx < train_env.length:
         a = agent.predict(data['current'], w)
-        data = train_env.step(w, a)
+        data = train_env.step(w, a.detach().numpy())
 
-        agent.save_transition(data['current'], w, a, data['reward']-data['risk'], data['is_nonterminal'], data['next'])
-        print(data)
+        agent.save_transition(data['current'], a, data['reward']-data['risk'], data['is_nonterminal'], data['next'], w)
+        # print(data)
 
         i += 1
         if i % opts.episode_length:
@@ -34,12 +35,11 @@ def rollout(agent, opts):
         # do validation once every n iterations
 
         w = a
-
 def main():
     opts = parse_args()
 
     # initialize agent
-    agent = None
+    agent = DDPG(7, 10, 5)
 
     for epoch in range(opts.epochs):
         rollout(agent, opts)

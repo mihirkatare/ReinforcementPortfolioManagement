@@ -96,9 +96,10 @@ class Environment:
 
         a = a / (np.dot(a, price) + epsilon)
         next_state = self.x[self.idx+1]
-
+        curr_state = self.x[self.idx]
         data = {
-            'reward': reward, 
+            'reward': reward,
+            'current': curr_state, 
             'next': next_state,
             'action': a,
             'price': price,

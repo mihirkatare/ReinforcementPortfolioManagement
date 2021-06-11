@@ -104,10 +104,10 @@ class DDPG():
         self.M = M
         self.L = L
         self.N = N
-        self.actor = Actor(self.M)
-        self.actor_target = Actor(self.M)
-        self.critic = Critic(self.M)
-        self.critic_target = Critic(self.M)
+        self.actor = Actor(self.M).double()
+        self.actor_target = Actor(self.M).double()
+        self.critic = Critic(self.M).double()
+        self.critic_target = Critic(self.M).double()
         self.actor_optim = Adam(self.actor.parameters())
         self.critic_optim = Adam(self.critic.parameters())
 
@@ -122,7 +122,7 @@ class DDPG():
         self.criterion = nn.MSELoss()
 
     def predict(self, s, action):
-        return self.actor((s, action)) # needs to be passed as a tuple
+        return self.actor((torch.tensor(s).double(), torch.tensor(action).double())) # needs to be passed as a tuple
     
     def save_transition(self, state, action, r, is_nonterminal, next_state, prev_action):
         self.buffer.append((state, action, r, is_nonterminal, next_state, prev_action))
@@ -133,16 +133,17 @@ class DDPG():
 
         y = []
         for i in range(length):
-            q_next_i = self.critic_target((s_next[i], w[i], self.actor_target((s_next[i], w[i])) ))
+            q_next_i = self.critic_target( (s_next[i], w[i], self.actor_target((s_next[i], w[i])) ) )
             y.append(r[i] + self.discount*isnt[i]*q_next_i[i])
 
         # updating critic
         self.critic.zero_grad()
         q_pred = []
         for j in range(length):
-            q_pred.append(self.critic((s[j], w[j], a[j])) )
+            q_pred.append(self.critic((s[j], w[j], a[j]))[0] )
         
         c_loss = self.criterion(torch.stack(q_pred), torch.stack(y) )
+        print(q_pred[0], y[0])
         c_loss.backward()
         self.critic_optim.step()
 
@@ -160,12 +161,12 @@ class DDPG():
         soft_update(self.critic_target, self.critic, self.tau)
 
     def get_batch(self):
-        s = [data[0] for data in self.buffer]
-        a = [data[1] for data in self.buffer]
-        r = [data[2] for data in self.buffer]
-        isnt = [data[3] for data in self.buffer]
-        s_next = [data[4] for data in self.buffer]
-        w = [data[5] for data in self.buffer]
+        s = [torch.tensor(data[0]).double() for data in self.buffer]
+        a = [torch.tensor(data[1]).double() for data in self.buffer]
+        r = [torch.tensor(data[2]).double() for data in self.buffer]
+        isnt = [torch.tensor(data[3]).double() for data in self.buffer]
+        s_next = [torch.tensor(data[4]).double() for data in self.buffer]
+        w = [torch.tensor(data[5]).double() for data in self.buffer]
         return s, a, r, isnt, s_next, w
 
     def reset_buffer(self):
