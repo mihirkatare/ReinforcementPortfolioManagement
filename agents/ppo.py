@@ -8,13 +8,13 @@ from .network import PPOActor, PPOCritic
 eps=1e-10
 
 class PPO:
-    def __init__(self, num_assets):
+    def __init__(self, num_assets, window_length, num_features):
         self.num_assets = num_assets
 
-        self.actor = PPOActor(num_assets)
-        self.critic = PPOCritic(num_assets)
+        self.actor = PPOActor(num_assets, window_length, num_features).double()
+        self.critic = PPOCritic(num_assets, window_length, num_features).double()
 
-        self.lr = 0.001
+        self.lr = 0.000001
 
         self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
         self.critic_optim = Adam(self.critic.parameters(), lr=self.lr)
@@ -22,13 +22,19 @@ class PPO:
         self.buffer = []
         self.log_probs = []
         self.output_actions = []
+        self.states = []
+        self.rewards = []
+        self.weights = []
 
         self.clip = 0.2
 
-        self.cov_mat = torch.eye(self.num_assets)
+        self.cov_mat = torch.eye(self.num_assets).double()
     
     def predict(self, s, weights):
-        action_vec = self.actor((torch.tensor(s).double(), torch.tensor(weights).double()))
+        s = torch.flatten(torch.tensor(s))
+        weights = torch.flatten(weights).double()
+
+        action_vec = self.actor((s, weights))
         
         distribution = MultivariateNormal(action_vec, self.cov_mat)
         sampled = distribution.sample()
@@ -37,57 +43,62 @@ class PPO:
         self.log_probs.append(log_prob)
         self.output_actions.append(sampled)
 
-        return torch.softmax(sampled)
+        new_weights = torch.softmax(sampled, 0)
+        new_weights = torch.unsqueeze(new_weights, 0)
 
-    def save_transition(self, state, action, r, is_nonterminal, next_state, prev_action):
-        self.buffer.append((state, action, r, is_nonterminal, prev_action))
+        return new_weights
+
+    def save_transition(self, state, action, reward, is_nonterminal, next_state, weight):
+        self.states.append(state)
+        self.rewards.append(reward)
+        self.weights.append(weight)
 
     def reset_buffer(self):
         self.buffer = []
         self.log_probs = []
         self.output_actions = []
+        self.states = []
+        self.rewards = []
+        self.weights = []
 
     def train(self):
-        state, curr_weights, action, reward, nonterminal = self.get_batch()
-        batch_len = len(state)
+        states, weights, rewards = torch.tensor(self.states), torch.stack(self.weights), torch.tensor(self.rewards)
 
-        V, _ = self.evaluate(state, curr_weights)
-        advantages = reward - V.detach()
+        batch_size = len(self.states)
+        states = states.view(batch_size, -1)
+        weights = weights.view(batch_size, -1)
+        rewards = rewards.view(batch_size, -1)
+
+        V, _ = self.evaluate(states, weights)
+        advantages = rewards - V.detach()
 
         advantages = (advantages - advantages.mean()) / (advantages.std() + eps)
+        prev_log_probs = torch.stack(self.log_probs)
 
-        for i in range(5):
-            V, new_log_probs = self.evaluate(state, curr_weights)
+        # for i in range(5):
+        V, new_log_probs = self.evaluate(states, weights)
 
-            r = torch.exp(new_log_probs - self.log_probs)
+        r = torch.exp(new_log_probs - prev_log_probs)
 
-            surr1 = r * advantages
-            surr2 = torch.clamp(r, 1 - self.clip, 1 + self.clip) * advantages
+        surr1 = r * advantages
+        surr2 = torch.clamp(r, 1 - self.clip, 1 + self.clip) * advantages
 
-            actor_loss = (-torch.min(surr1, surr2)).mean()
-            critic_loss = nn.MSELoss()(V, reward)
-            
-            self.actor_optim.zero_grad()
-            actor_loss.backward(retain_graph=True)
-            self.actor_optim.step()
-            
-            self.critic_optim.zero_grad()
-            critic_loss.backward()
-            self.critic_optim.step()
+        actor_loss = (-torch.min(surr1, surr2)).mean()
+        critic_loss = nn.MSELoss()(V, rewards)
+        
+        self.actor_optim.zero_grad()
+        actor_loss.backward()
+        self.actor_optim.step()
+        
+        self.critic_optim.zero_grad()
+        critic_loss.backward()
+        self.critic_optim.step()
 
     def evaluate(self, state, curr_weights):
         V = self.critic((state, curr_weights)).squeeze()
 
         mean = self.actor((state, curr_weights))
         dist = MultivariateNormal(mean, self.cov_mat)
-        new_log_probs = dist.log_prob(self.output_actions)
+        new_log_probs = dist.log_prob(torch.stack(self.output_actions))
 
         return V, new_log_probs
-
-    def get_batch(self):
-        state = torch.tensor([torch.tensor(data[0]).double() for data in self.buffer])
-        action = torch.tensor([torch.tensor(data[1]).double() for data in self.buffer])
-        reward = torch.tensor([torch.tensor(data[2]).double() for data in self.buffer])
-        nonterminal = torch.tensor([torch.tensor(data[3]).double() for data in self.buffer])
-        curr_weights = torch.tensor([torch.tensor(data[4]).double() for data in self.buffer])
-        return state, curr_weights, action, reward, nonterminal

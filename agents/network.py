@@ -61,21 +61,21 @@ class Actor(nn.Module):
         return y
 
 class PPOActor(nn.Module):
-    def __init__(self, output_dim):
-        super(Actor, self).__init__()
-        self.output_dim = output_dim
-        # self.L = L
-        # self.N = N
-        self.basic = basicNetwork()
-        self.fc1 = nn.Linear(350, 350)
-        self.fc2 = nn.Linear(self.M, 350)
+    def __init__(self, num_assets, window_length, num_features):
+        super(PPOActor, self).__init__()
+        self.output_dim = num_assets
+        # self.basic = basicNetwork()
+        # self.fc1 = nn.Linear(350, 350)
+        self.fc1 = nn.Linear(num_assets*window_length*num_features, 350)
+        self.fc2 = nn.Linear(num_assets, 350)
         self.fc3 = nn.Linear(350, self.output_dim)
         self.relu = nn.ReLU()
 
     def forward(self, input):
         x, w = input
-        y = self.relu(self.basic(x))
-        y = self.fc1(y)
+        # y = self.relu(self.basic(x))
+        # y = self.fc1(y)
+        y = self.relu(self.fc1(x))
         y_w = self.fc2(w)
         y = self.relu(y+y_w)
         y = self.fc3(y)
@@ -103,19 +103,17 @@ class Critic(nn.Module):
         return y
 
 class PPOCritic(nn.Module):
-    def __init__(self, output_dim):
-        super(Critic, self).__init__()
-        self.output_dim = output_dim
-        self.basic = basicNetwork()
-        self.fc1 = nn.Linear(350, 350)
-        self.fc2 = nn.Linear(self.M, 350)
+    def __init__(self, num_assets, window_length, num_features):
+        super(PPOCritic, self).__init__()
+        self.output_dim = num_assets
+        self.fc1 = nn.Linear(num_assets*window_length*num_features, 350)
+        self.fc2 = nn.Linear(self.output_dim, 350)
         self.fc3 = nn.Linear(350, 1)
         self.relu = nn.ReLU()
 
     def forward(self, input):
         x, w = input
-        y = self.relu(self.basic(x))
-        y = self.fc1(y)
+        y = self.relu(self.fc1(x))
         y_w = self.fc2(w)
         y = self.relu(y+y_w)
         y = self.fc3(y)

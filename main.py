@@ -5,6 +5,8 @@ from options import parse_args
 from dataloader import getEnvironments, getTestEnvironment
 
 from agents.ddpg import DDPG
+from agents.ppo import PPO
+
 # yet to implement
 def backtest(agent, env):
     pass
@@ -30,7 +32,6 @@ def rollout(agent, opts):
             loss = agent.train()
             agent.reset_buffer()
             print(int(i/opts.episode_length))
-           
         
         # update trader for output
 
@@ -46,7 +47,7 @@ def main():
     opts = parse_args()
 
     # initialize agent
-    agent = DDPG(7, 10, 5)
+    agent = PPO(7, 10, 5)
 
     for epoch in range(opts.epochs):
         print("epoch: " + str(epoch+1))
