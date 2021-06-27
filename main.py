@@ -41,6 +41,7 @@ def rollout(agent, opts):
             break
 
         w = a
+
 def main():
     opts = parse_args()
 

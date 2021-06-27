@@ -60,6 +60,27 @@ class Actor(nn.Module):
         y = self.softmax(y)
         return y
 
+class PPOActor(nn.Module):
+    def __init__(self, output_dim):
+        super(Actor, self).__init__()
+        self.output_dim = output_dim
+        # self.L = L
+        # self.N = N
+        self.basic = basicNetwork()
+        self.fc1 = nn.Linear(350, 350)
+        self.fc2 = nn.Linear(self.M, 350)
+        self.fc3 = nn.Linear(350, self.output_dim)
+        self.relu = nn.ReLU()
+
+    def forward(self, input):
+        x, w = input
+        y = self.relu(self.basic(x))
+        y = self.fc1(y)
+        y_w = self.fc2(w)
+        y = self.relu(y+y_w)
+        y = self.fc3(y)
+        return y
+
 class Critic(nn.Module):
     def __init__(self, M):
         super(Critic, self).__init__()
@@ -79,4 +100,23 @@ class Critic(nn.Module):
         y_w = self.fc3(w)
         y = self.relu(y+y_a+y_w)
         y = self.fc4(y)
+        return y
+
+class PPOCritic(nn.Module):
+    def __init__(self, output_dim):
+        super(Critic, self).__init__()
+        self.output_dim = output_dim
+        self.basic = basicNetwork()
+        self.fc1 = nn.Linear(350, 350)
+        self.fc2 = nn.Linear(self.M, 350)
+        self.fc3 = nn.Linear(350, 1)
+        self.relu = nn.ReLU()
+
+    def forward(self, input):
+        x, w = input
+        y = self.relu(self.basic(x))
+        y = self.fc1(y)
+        y_w = self.fc2(w)
+        y = self.relu(y+y_w)
+        y = self.fc3(y)
         return y
