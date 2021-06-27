@@ -54,7 +54,7 @@ class DDPG():
         y = []
         for i in range(length):
             q_next_i = self.critic_target( (s_next[i], w[i], self.actor_target((s_next[i], w[i])) ) )
-            y.append(r[i] + self.discount*isnt[i]*q_next_i[i])
+            y.append(r[i] + self.discount*isnt[i]*q_next_i)
 
         # updating critic
         self.critic.zero_grad()
@@ -63,7 +63,7 @@ class DDPG():
             q_pred.append(self.critic((s[j], w[j], a[j]))[0] )
         
         c_loss = self.criterion(torch.stack(q_pred), torch.stack(y) )
-        print(q_pred[0], y[0])
+        # print(q_pred[0], y[0])
         c_loss.backward()
         self.critic_optim.step()
 

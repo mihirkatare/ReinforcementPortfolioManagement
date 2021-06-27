@@ -95,7 +95,7 @@ class Environment:
         reward = np.log(reward + epsilon)
 
         a = a / (np.dot(a, price) + epsilon)
-        next_state = self.x[self.idx+1]
+        next_state = self.x[self.idx+1] if self.idx+1 < self.length else self.x[self.idx]
         curr_state = self.x[self.idx]
         data = {
             'reward': reward,
