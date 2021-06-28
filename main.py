@@ -30,7 +30,7 @@ def rollout(agent, opts):
         i += 1
         if i % opts.episode_length==0:
             loss = agent.train()
-            agent.reset_buffer()\
+            agent.reset_buffer()
         
         # update trader for output
 
