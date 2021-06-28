@@ -30,15 +30,16 @@ def rollout(agent, opts):
         i += 1
         if i % opts.episode_length==0:
             loss = agent.train()
-            agent.reset_buffer()
-            print(int(i/opts.episode_length))
+            agent.reset_buffer()\
         
         # update trader for output
 
         # do validation once every n iterations
 
-        if train_env.idx == opts.window_length:
+        if train_env.idx == train_env.length-1:
             print("Weights: ", w[0].tolist())
+            value = np.dot(w, data["price"])
+            print("Portfolio Value: ", value.item())
             break
 
         w = a
