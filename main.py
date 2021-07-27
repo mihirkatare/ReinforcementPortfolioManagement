@@ -38,7 +38,7 @@ def rollout(agent, opts):
 
         if train_env.idx == train_env.length-1:
             print("Weights: ", w[0].tolist())
-            value = np.dot(w, data["price"])
+            value = np.dot(w.detach().numpy(), data["price"])
             print("Portfolio Value: ", value.item())
             break
 
@@ -48,7 +48,7 @@ def main():
     opts = parse_args()
 
     # initialize agent
-    agent = PPO(7, 10, 5)
+    agent = DDPG(7, 10, 5)
 
     for epoch in range(opts.epochs):
         print("epoch: " + str(epoch+1))
