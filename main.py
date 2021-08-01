@@ -9,9 +9,9 @@ from trader import StockTrader
 
 from agents import DDPG, PPO, UCRP, WINNER, LOSSER
 
-def backtest(agent, label, trader, opts):
-    agents = [agent, UCRP(), WINNER(), LOSSER()]
-    labels = [label, 'UCRP', 'Winner', 'Losser']
+def backtest(agents, labels, trader, opts):
+    agents.extend([UCRP(), WINNER(), LOSSER()])
+    labels.extend(['UCRP', 'Winner', 'Losser'])
 
     all_wealths = []
     all_rewards = []
@@ -38,7 +38,6 @@ def backtest(agent, label, trader, opts):
             rewards.append(math.exp(data['reward']))
             
             trader.update_summary(data['reward'], w, data['current'])
-            trader.print_update(i)
 
             if test_env.idx == test_env.length-1:
                 break
@@ -49,14 +48,16 @@ def backtest(agent, label, trader, opts):
 
         all_wealths.append(wealths)
         all_rewards.append(rewards)
-    
+
     plt.figure(figsize=(8, 6), dpi=100)
     for i in range(len(agents)):
         plt.plot(all_wealths[i], label=labels[i])
+
         mrr=float(np.mean(all_rewards[i])*100)
         sharpe=float(np.mean(all_rewards[i])/np.std(all_rewards[i])*np.sqrt(252))
         maxdrawdown=float(max(1-min(all_wealths[i])/np.maximum.accumulate(all_wealths[i])))
-        print(labels[i],'   ',round(mrr,3),'%','   ',round(sharpe,3),'  ',round(maxdrawdown,3))
+
+        print(f"{labels[i]}\nMRR: {round(mrr,3)}%\nSharpe: {round(sharpe,3)}\nMax Drawdown: {round(maxdrawdown,3)}\n")
 
     plt.legend()
     plt.savefig('./backtest_output/wealths.png')
@@ -122,7 +123,8 @@ def main():
         # load model from path and initialize agent with it
 
         # call backtest (initialized PPO for now) (switch with trained model later)
-        backtest(PPO(7, 10, 5), 'PPO', trader, opts)
+        agents = [DDPG(7, 10, 5), PPO(7, 10, 5)]
+        backtest(agents, ['DDPG', 'PPO'], trader, opts)
 
     else:
         raise Exception("mode can only be one of 'test' or 'train'")
