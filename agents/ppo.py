@@ -14,7 +14,7 @@ class PPO:
         self.actor = PPOActor(num_assets, window_length, num_features).double()
         self.critic = PPOCritic(num_assets, window_length, num_features).double()
 
-        self.lr = 0.000001
+        self.lr = 0.001
 
         self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
         self.critic_optim = Adam(self.critic.parameters(), lr=self.lr)

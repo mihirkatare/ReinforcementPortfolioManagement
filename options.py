@@ -9,6 +9,9 @@ def parse_args():
     parser.add_argument("--cost", type=float, default=0.0025)
     parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--episode_length", type=int, default=10)
+    parser.add_argument("--model", type=str, required=True)
+    parser.add_argument("--mode", type=str, default="train")
+    parser.add_argument("--model_dir", type=str, default=None)
 
     opts = parser.parse_args()
     return opts
