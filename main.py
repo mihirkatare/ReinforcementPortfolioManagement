@@ -95,7 +95,7 @@ def rollout(agent, trader, opts):
 
         w = a
 
-    trader.plot_result()
+    # trader.plot_result()
     trader.reset()
 
 def main():
@@ -116,6 +116,9 @@ def main():
         for epoch in range(opts.epochs):
             print("epoch: " + str(epoch+1))
             rollout(agent, trader, opts)
+        if opts.savemodel == "True":
+            torch.save(agent.actor.state_dict(), "post/" + opts.model + "Actor.pth")
+            torch.save(agent.critic.state_dict(), "post/" + opts.model + "Critic.pth")
     elif opts.mode == "test":
         # if opts.model_dir == None:
         #     raise Exception(f"model_dir needs to be specified when running on test set")
@@ -124,6 +127,17 @@ def main():
 
         # call backtest (initialized PPO for now) (switch with trained model later)
         agents = [DDPG(7, 10, 5), PPO(7, 10, 5)]
+
+        if opts.hasPretrained == "True":
+            agents[0].actor.load_state_dict(torch.load("post/ddpgActor.pth"))
+            agents[0].actor_target.load_state_dict(torch.load("post/ddpgActor.pth"))
+            agents[0].critic.load_state_dict(torch.load("post/ddpgCritic.pth"))
+            agents[0].critic_target.load_state_dict(torch.load("post/ddpgCritic.pth"))
+            agents[0].actor.eval()
+            agents[0].actor_target.eval()
+            agents[0].critic.eval()
+            agents[0].critic_target.eval()
+        
         backtest(agents, ['DDPG', 'PPO'], trader, opts)
 
     else:

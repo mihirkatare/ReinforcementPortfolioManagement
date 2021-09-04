@@ -12,6 +12,8 @@ def parse_args():
     parser.add_argument("--model", type=str, required=True)
     parser.add_argument("--mode", type=str, default="train")
     parser.add_argument("--model_dir", type=str, default=None)
+    parser.add_argument("--savemodel", type=str, default="False")
+    parser.add_argument("--hasPretrained", type=str, default="False")
 
     opts = parser.parse_args()
     return opts
