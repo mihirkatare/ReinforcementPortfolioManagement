@@ -60,6 +60,9 @@ def backtest(agents, labels, trader, opts):
         print(f"{labels[i]}\nMRR: {round(mrr,3)}%\nSharpe: {round(sharpe,3)}\nMax Drawdown: {round(maxdrawdown,3)}\n")
 
     plt.legend()
+    plt.title("Comparision of DDPG (100 epochs) against benchmarked algorithms")
+    plt.xlabel("Timesteps")
+    plt.ylabel("Portfolio Value")
     plt.savefig('./backtest_output/wealths.png')
     plt.show()
 
@@ -126,7 +129,7 @@ def main():
         # load model from path and initialize agent with it
 
         # call backtest (initialized PPO for now) (switch with trained model later)
-        agents = [DDPG(7, 10, 5), PPO(7, 10, 5)]
+        agents = [DDPG(7, 10, 5)]
 
         if opts.hasPretrained == "True":
             agents[0].actor.load_state_dict(torch.load("post/ddpgActor.pth"))
@@ -138,7 +141,7 @@ def main():
             agents[0].critic.eval()
             agents[0].critic_target.eval()
         
-        backtest(agents, ['DDPG', 'PPO'], trader, opts)
+        backtest(agents, ['DDPG'], trader, opts)
 
     else:
         raise Exception("mode can only be one of 'test' or 'train'")

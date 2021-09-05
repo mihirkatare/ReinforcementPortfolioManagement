@@ -8,7 +8,11 @@ Implementing an agent for portfolio management using reinforcement learning algo
 We are currently using the following algorithms to train the agent:
 - Deep Deterministic Policy Gradient (DDPG)
 - Proximal Policy Gradient (PPO)
- 
+
+### Results
+Plots from running our initial DDPG model for 100 epochs are shown below:
+
+![DDPG_v1_plot](results/ddpg_100_v1/wealths.png)
  ### Dataset
 The agent is trained on a data set we created for a market of the following 6 stocks:
 - Apple (AAPL)
